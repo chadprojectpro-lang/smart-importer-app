@@ -38,6 +38,33 @@ const upload = multer({
 const db = new Database(databasePath);
 console.log(`Connected to SQLite database at ${databasePath}`);
 
+function createRateLimiter({ windowMs, maxRequests }) {
+  const requests = new Map();
+
+  return (req, res, next) => {
+    const key = `${req.ip}:${req.path}`;
+    const now = Date.now();
+    const entry = requests.get(key);
+
+    if (!entry || now - entry.startedAt >= windowMs) {
+      requests.set(key, { count: 1, startedAt: now });
+      next();
+      return;
+    }
+
+    if (entry.count >= maxRequests) {
+      res.status(429).json({ error: 'Too many requests, please try again later' });
+      return;
+    }
+
+    entry.count += 1;
+    next();
+  };
+}
+
+const importRateLimit = createRateLimiter({ windowMs: 60_000, maxRequests: 10 });
+const readRateLimit = createRateLimiter({ windowMs: 60_000, maxRequests: 60 });
+
 async function initializeDatabase() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
@@ -86,6 +113,17 @@ function normalizeProductRow(row) {
   };
 }
 
+function resolveUploadedFilePath(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  const relativePath = path.relative(uploadsDir, resolvedPath);
+
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    throw new Error('Invalid upload path');
+  }
+
+  return resolvedPath;
+}
+
 async function cleanupUploadedFile(filePath) {
   if (!filePath) {
     return;
@@ -100,7 +138,7 @@ async function cleanupUploadedFile(filePath) {
   }
 }
 
-app.post('/api/import', upload.single('file'), async (req, res) => {
+app.post('/api/import', importRateLimit, upload.single('file'), async (req, res) => {
   console.log('POST /api/import');
 
   if (!req.file) {
@@ -109,7 +147,7 @@ app.post('/api/import', upload.single('file'), async (req, res) => {
   }
 
   try {
-    const workbook = xlsx.readFile(req.file.path);
+    const workbook = xlsx.readFile(resolveUploadedFilePath(req.file.path));
     const firstSheetName = workbook.SheetNames[0];
 
     if (!firstSheetName) {
@@ -160,7 +198,10 @@ app.post('/api/import', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('Import failed:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to import Excel file';
-    const isUploadValidationError = error instanceof multer.MulterError;
+    const isUploadValidationError =
+      error instanceof multer.MulterError ||
+      errorMessage === 'Only .xlsx and .xls files are supported' ||
+      errorMessage === 'Invalid upload path';
     res.status(isUploadValidationError ? 400 : 500).json({
       error: isUploadValidationError ? errorMessage : 'Failed to import Excel file'
     });
@@ -169,7 +210,7 @@ app.post('/api/import', upload.single('file'), async (req, res) => {
   }
 });
 
-app.get('/api/products', async (_req, res, next) => {
+app.get('/api/products', readRateLimit, async (_req, res, next) => {
   try {
     const products = db
       .prepare('SELECT * FROM products ORDER BY created_at DESC, id DESC')
@@ -180,7 +221,7 @@ app.get('/api/products', async (_req, res, next) => {
   }
 });
 
-app.get('/api/imports', async (_req, res, next) => {
+app.get('/api/imports', readRateLimit, async (_req, res, next) => {
   try {
     const imports = db
       .prepare('SELECT * FROM imports ORDER BY imported_at DESC, id DESC')

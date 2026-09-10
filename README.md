@@ -40,11 +40,11 @@ The backend runs on `http://localhost:3001` and exposes:
 npm run dev:frontend
 ```
 
-The frontend connects to `http://localhost:3001`.
+The frontend defaults to `http://localhost:3001` and can be pointed elsewhere with `VITE_API_BASE_URL`.
 
 ## Run the Tauri desktop app
 
-In a second terminal, keep the backend running, then start Tauri:
+Tauri development starts both the Vite frontend and Express backend automatically:
 
 ```bash
 npm run tauri:dev
@@ -52,7 +52,7 @@ npm run tauri:dev
 
 ## Import spreadsheet expectations
 
-The importer reads the first sheet in `.xlsx` or `.xls` files and supports flexible column names for:
+The importer reads the first sheet in `.xlsx` or `.xls` files and accepts these headers case-insensitively (for example `name` or `Name`):
 
 - `name` / `Name`
 - `sku` / `SKU`

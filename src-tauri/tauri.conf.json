@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.chadprojectpro.smartimporter",
   "build": {
-    "beforeDevCommand": "npm run dev:frontend -- --host 0.0.0.0",
+    "beforeDevCommand": "npm run dev:tauri-stack",
     "beforeBuildCommand": "npm run build:frontend",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../frontend/dist"

@@ -8,14 +8,16 @@
     "backend"
   ],
   "scripts": {
-    "dev:frontend": "npm run -w frontend dev",
+    "dev:frontend": "npm run -w frontend dev -- --host 0.0.0.0",
     "dev:backend": "npm run -w backend dev",
+    "dev:tauri-stack": "concurrently -k \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build:frontend": "npm run -w frontend build",
     "lint:frontend": "npm run -w frontend lint",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.8.5"
+    "@tauri-apps/cli": "^2.8.5",
+    "concurrently": "^9.2.1"
   }
 }
