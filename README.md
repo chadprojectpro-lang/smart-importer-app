@@ -7,6 +7,15 @@ Smart Importer is a Tauri + React desktop frontend with an Express + SQLite back
 - Node.js 22+
 - Rust/Cargo (for Tauri desktop development)
 
+### Linux-only Tauri system packages
+
+If you are running the desktop shell on Linux, install the required GTK/WebKit packages first:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libayatana-appindicator3-dev
+```
+
 ## Install
 
 ```bash
