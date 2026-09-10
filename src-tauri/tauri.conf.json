@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Smart Importer",
+  "version": "0.1.0",
+  "identifier": "com.chadprojectpro.smartimporter",
+  "build": {
+    "beforeDevCommand": "npm run dev:frontend -- --host 0.0.0.0",
+    "beforeBuildCommand": "npm run build:frontend",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Smart Importer",
+        "width": 1100,
+        "height": 800,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": []
+  }
+}
