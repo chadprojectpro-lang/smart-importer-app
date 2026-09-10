@@ -114,7 +114,7 @@ function App() {
           <input
             id="spreadsheet-upload"
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx"
             onChange={handleFileChange}
           />
           <span className="file-name">{fileName}</span>

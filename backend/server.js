@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const xlsx = require('xlsx');
+const readXlsxFile = require('read-excel-file/node');
 const Database = require('better-sqlite3');
 const cors = require('cors');
 const fs = require('fs');
@@ -26,8 +26,8 @@ const upload = multer({
   },
   fileFilter: (_req, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase();
-    if (!['.xlsx', '.xls'].includes(extension)) {
-      callback(new Error('Only .xlsx and .xls files are supported'));
+    if (extension !== '.xlsx') {
+      callback(new Error('Only .xlsx files are supported'));
       return;
     }
 
@@ -88,9 +88,10 @@ async function initializeDatabase() {
 }
 
 function getCellValue(row, acceptedKeys) {
-  const match = Object.keys(row).find((key) =>
-    acceptedKeys.includes(String(key).trim().toLowerCase())
-  );
+  const match = Object.keys(row).find((key) => {
+    const normalizedKey = String(key).trim().toLowerCase();
+    return acceptedKeys.includes(normalizedKey);
+  });
 
   return match ? row[match] : undefined;
 }
@@ -138,6 +139,34 @@ async function cleanupUploadedFile(filePath) {
   }
 }
 
+async function readSpreadsheetRows(filePath) {
+  const worksheetRows = await readXlsxFile(filePath);
+  if (!worksheetRows.length) {
+    throw new Error('The Excel file does not contain any sheets');
+  }
+
+  const [headerValues, ...dataValues] = worksheetRows;
+  const headers = headerValues.map((value) => String(value ?? '').trim());
+
+  if (!headers.some(Boolean)) {
+    throw new Error('The Excel file does not contain any data rows');
+  }
+
+  const rawRows = dataValues.map((cells) => {
+    const rowData = {};
+    headers.forEach((header, index) => {
+      if (!header) {
+        return;
+      }
+
+      rowData[header] = cells[index] ?? '';
+    });
+    return rowData;
+  });
+
+  return rawRows.filter((row) => Object.values(row).some((value) => value !== ''));
+}
+
 app.post('/api/import', importRateLimit, upload.single('file'), async (req, res) => {
   console.log('POST /api/import');
 
@@ -147,16 +176,7 @@ app.post('/api/import', importRateLimit, upload.single('file'), async (req, res)
   }
 
   try {
-    const workbook = xlsx.readFile(resolveUploadedFilePath(req.file.path));
-    const firstSheetName = workbook.SheetNames[0];
-
-    if (!firstSheetName) {
-      res.status(400).json({ error: 'The Excel file does not contain any sheets' });
-      return;
-    }
-
-    const worksheet = workbook.Sheets[firstSheetName];
-    const rows = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+    const rows = await readSpreadsheetRows(resolveUploadedFilePath(req.file.path));
 
     if (!rows.length) {
       res.status(400).json({ error: 'The Excel file does not contain any data rows' });
@@ -200,8 +220,10 @@ app.post('/api/import', importRateLimit, upload.single('file'), async (req, res)
     const errorMessage = error instanceof Error ? error.message : 'Failed to import Excel file';
     const isUploadValidationError =
       error instanceof multer.MulterError ||
-      errorMessage === 'Only .xlsx and .xls files are supported' ||
-      errorMessage === 'Invalid upload path';
+      errorMessage === 'Only .xlsx files are supported' ||
+      errorMessage === 'Invalid upload path' ||
+      errorMessage === 'The Excel file does not contain any sheets' ||
+      errorMessage === 'The Excel file does not contain any data rows';
     res.status(isUploadValidationError ? 400 : 500).json({
       error: isUploadValidationError ? errorMessage : 'Failed to import Excel file'
     });
@@ -233,11 +255,16 @@ app.get('/api/imports', readRateLimit, async (_req, res, next) => {
 });
 
 app.use((error, _req, res, _next) => {
-  console.error('Unhandled server error:', error);
   const errorMessage = error instanceof Error ? error.message : 'Internal server error';
   const isClientError =
     error instanceof multer.MulterError ||
-    errorMessage === 'Only .xlsx and .xls files are supported';
+    errorMessage === 'Only .xlsx files are supported';
+
+  if (isClientError) {
+    console.warn('Request validation error:', errorMessage);
+  } else {
+    console.error('Unhandled server error:', error);
+  }
 
   res.status(isClientError ? 400 : 500).json({
     error: isClientError ? errorMessage : 'Internal server error'

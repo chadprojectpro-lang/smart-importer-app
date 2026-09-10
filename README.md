@@ -1,6 +1,6 @@
 # Smart Importer
 
-Smart Importer is a Tauri + React desktop frontend with an Express + SQLite backend that imports Excel spreadsheets into a products database.
+Smart Importer is a Tauri + React desktop frontend with an Express + SQLite backend that imports `.xlsx` spreadsheets into a products database.
 
 ## Requirements
 
@@ -52,7 +52,7 @@ npm run tauri:dev
 
 ## Import spreadsheet expectations
 
-The importer reads the first sheet in `.xlsx` or `.xls` files and accepts these headers case-insensitively (for example `name` or `Name`):
+The importer reads the first sheet in `.xlsx` files and accepts these headers case-insensitively (for example `name` or `Name`):
 
 - `name` / `Name`
 - `sku` / `SKU`
